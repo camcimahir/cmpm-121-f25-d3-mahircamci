@@ -25,12 +25,12 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] delete everything in main.ts
 - [x] put a basic leaflet map on the screen
 - [x] draw the player's location on the map
-- [X] draw a rectangle representing one cell on the map
-- [X] use loops to draw a whole grid of cells on the map
-- [X] Store cell data (track which cells have tokens and their values)
-- [X] Use luck() to deterministically decide which cells start with tokens
-- [X] Display token values as text labels on cells (visible without clicking)
-- [X] Only draw cells that have tokens
+- [x] draw a rectangle representing one cell on the map
+- [x] use loops to draw a whole grid of cells on the map
+- [x] Store cell data (track which cells have tokens and their values)
+- [x] Use luck() to deterministically decide which cells start with tokens
+- [x] Display token values as text labels on cells (visible without clicking)
+- [x] Only draw cells that have tokens
 - [ ] Implement "nearby" detection helper function
 - [ ] Visual indicator for which cells are within interaction range
 - [ ] Make cells clickable (add click handlers)
