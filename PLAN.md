@@ -1,3 +1,5 @@
+<!-- markdownlint-disable MD025 -->
+
 # D3: World of Bits
 
 # Game Design Vision
@@ -19,15 +21,11 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 ### Steps
 
-- [ ] copy main.ts to reference.ts for future reference
-- [ ] delete everything in main.ts
-- [ ] put a basic leaflet map on the screen
-- [ ] draw the player's location on the map
+- [x] copy main.ts to reference.ts for future reference
+- [x] delete everything in main.ts
+- [x] put a basic leaflet map on the screen
+- [x] draw the player's location on the map
 - [ ] draw a rectangle representing one cell on the map
 - [ ] use loops to draw a whole grid of cells on the map
 
-## D3.b:
-
-...
-
-### 
+## D3.b
