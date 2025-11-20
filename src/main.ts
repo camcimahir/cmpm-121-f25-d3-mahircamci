@@ -10,6 +10,7 @@ import "./style.css"; // student-controlled page style
 import "./_leafletWorkaround.ts"; // fixes for missing Leaflet images
 
 // Import our luck function
+import luck from "./_luck.ts";
 
 // Create basic UI elements
 
@@ -29,7 +30,7 @@ document.body.append(statusPanelDiv);
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 8;
-const CACHE_SPAWN_PROBABILITY = 0.1;
+const TOKEN_SPAWN_PROBABILITY = 0.1;
 const CLASSROOM_LATLNG = leaflet.latLng(
   36.997936938057016,
   -122.05703507501151,
@@ -39,6 +40,25 @@ const INTERACTION_LIMIT = 3; //test this out 4 might work better
 
 // === Game State ===
 let playerInventory: number | null = null;
+
+const cells = new Map<string, number | null>();
+
+function cellKey(i: number, j: number): string {
+  return `${i},${j}`;
+}
+
+function initializeCell(i: number, j: number) {
+  const key = cellKey(i, j);
+  if (luck([i, j, "hasToken"].toString()) < TOKEN_SPAWN_PROBABILITY) {
+    cells.set(key, 1); // All initial tokens have value 1
+  } else {
+    cells.set(key, null); // No token
+  }
+}
+
+function getCellToken(i: number, j: number): number | null {
+  return cells.get(cellKey(i, j)) ?? null;
+}
 
 // Create the map (element with id "map" is defined in index.html)
 const map = leaflet.map(mapDiv, {
@@ -74,3 +94,43 @@ function updateStatusPanel() {
 }
 
 updateStatusPanel(); // initalize the Status pannel
+
+function drawCell(i: number, j: number, tokenValue: number) {
+  // Calculate the lat/lng bounds for this cell
+  const origin = CLASSROOM_LATLNG;
+  const bounds = leaflet.latLngBounds([
+    [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
+    [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
+  ]);
+
+  // Create a rectangle for this cell
+  const rect = leaflet.rectangle(bounds);
+  rect.addTo(map);
+
+  // Bind a tooltip that shows the token value
+  rect.bindTooltip(`${tokenValue}`, {
+    permanent: true,
+    direction: "center",
+    className: "token-value-label",
+  });
+}
+
+for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
+  for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
+    // Initialize cell data
+    initializeCell(i, j);
+
+    // Only draw cells that have tokens
+    const tokenValue = getCellToken(i, j);
+    if (tokenValue !== null) {
+      drawCell(i, j, tokenValue);
+    }
+  }
+}
+
+console.log(`Initialized ${cells.size} cells`);
+console.log(
+  `Cells with tokens: ${
+    Array.from(cells.values()).filter((v) => v !== null).length
+  }`,
+);
