@@ -35,5 +35,9 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [ ] Make cells clickable (add click handlers)
 - [ ] Implement token collection (click nearby cell to pick up token)
 - [ ] Implement place token
+- [ ] Update inventory display when token collected
+- [ ] Handle crafting logic (only combine equal values, double the result)
+- [ ] Add win condition detection
+- [ ] The player can see cells all the way to the edge of the map
 
 ## D3.b
