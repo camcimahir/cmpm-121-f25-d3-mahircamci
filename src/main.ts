@@ -131,11 +131,12 @@ function drawCell(i: number, j: number, tokenValue: number) {
 
 function handleCellClick(i: number, j: number) {
   // Check if cell is nearby
+  /*
   if (!isNearby(i, j)) {
     statusPanelDiv.innerHTML = "That cell is too far!";
     return;
   }
-
+  */
   const cellToken = getCellToken(i, j);
 
   // Case 1: Cell has no token
