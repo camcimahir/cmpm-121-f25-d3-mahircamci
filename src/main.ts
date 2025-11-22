@@ -29,7 +29,7 @@ document.body.append(statusPanelDiv);
 // Tunable gameplay parameters
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
-const NEIGHBORHOOD_SIZE = 8;
+const NEIGHBORHOOD_SIZE = 32;
 const TOKEN_SPAWN_PROBABILITY = 0.1;
 const CLASSROOM_LATLNG = leaflet.latLng(
   36.997936938057016,
@@ -131,12 +131,12 @@ function drawCell(i: number, j: number, tokenValue: number) {
 
 function handleCellClick(i: number, j: number) {
   // Check if cell is nearby
-  /*
+
   if (!isNearby(i, j)) {
     statusPanelDiv.innerHTML = "That cell is too far!";
     return;
   }
-  */
+
   const cellToken = getCellToken(i, j);
 
   // Case 1: Cell has no token
