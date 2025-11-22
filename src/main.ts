@@ -43,6 +43,8 @@ let playerInventory: number | null = null;
 
 const cells = new Map<string, number | null>();
 
+const cellRectangles = new Map<string, leaflet.Rectangle>();
+
 function cellKey(i: number, j: number): string {
   return `${i},${j}`;
 }
@@ -58,6 +60,10 @@ function initializeCell(i: number, j: number) {
 
 function getCellToken(i: number, j: number): number | null {
   return cells.get(cellKey(i, j)) ?? null;
+}
+
+function isNearby(i: number, j: number): boolean {
+  return Math.abs(i) <= INTERACTION_LIMIT && Math.abs(j) <= INTERACTION_LIMIT;
 }
 
 // Create the map (element with id "map" is defined in index.html)
@@ -95,6 +101,8 @@ function updateStatusPanel() {
 
 updateStatusPanel(); // initalize the Status pannel
 
+// ==============================================================
+
 function drawCell(i: number, j: number, tokenValue: number) {
   // Calculate the lat/lng bounds for this cell
   const origin = CLASSROOM_LATLNG;
@@ -113,6 +121,58 @@ function drawCell(i: number, j: number, tokenValue: number) {
     direction: "center",
     className: "token-value-label",
   });
+
+  rect.on("click", () => {
+    handleCellClick(i, j);
+  });
+
+  return rect;
+}
+
+function handleCellClick(i: number, j: number) {
+  // Check if cell is nearby
+  if (!isNearby(i, j)) {
+    statusPanelDiv.innerHTML = "That cell is too far!";
+    return;
+  }
+
+  const cellToken = getCellToken(i, j);
+
+  // Case 1: Cell has no token
+  if (cellToken === null) {
+    statusPanelDiv.innerHTML = "This cell is empty.";
+    return;
+  }
+
+  // Case 2: Player inventory is empty - collect the token
+  if (playerInventory === null) {
+    playerInventory = cellToken;
+    cells.set(cellKey(i, j), null); // Remove token from cell
+    updateStatusPanel();
+    // later: remove cells visual representation
+    statusPanelDiv.innerHTML = `collected token. Value is ${cellToken}`;
+    return;
+  }
+
+  // Case 3: Player has a token - try to craft
+  if (playerInventory === cellToken) {
+    // Tokens match! Craft a new token of double value
+    const newValue = playerInventory * 2;
+    cells.set(cellKey(i, j), newValue); // Update cell with new token
+    playerInventory = null; // Clear inventory
+    updateStatusPanel();
+    // TODO: Update the cell's visual representation
+    statusPanelDiv.innerHTML = `✨ Crafted token with value ${newValue}!`;
+
+    // Check win condition
+    if (newValue >= WIN_VALUE_TOKEN) {
+      statusPanelDiv.innerHTML = `YOU WIN!you got to: ${newValue}!`;
+    }
+  } else {
+    // Tokens don't match
+    statusPanelDiv.innerHTML =
+      `Cannot craft: your token doesn't match cell token`;
+  }
 }
 
 for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
