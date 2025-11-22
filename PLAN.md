@@ -31,12 +31,12 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] Use luck() to deterministically decide which cells start with tokens
 - [x] Display token values as text labels on cells (visible without clicking)
 - [x] Only draw cells that have tokens
-- [X] Make cells clickable (add click handlers)
-- [X] Implement token collection (click nearby cell to pick up token)
-- [X] Implement place token
-- [X] Update inventory display when token collected
-- [X] Handle crafting logic (only combine equal values, double the result)
-- [X] Add win condition detection
+- [x] Make cells clickable (add click handlers)
+- [x] Implement token collection (click nearby cell to pick up token)
+- [x] Implement place token
+- [x] Update inventory display when token collected
+- [x] Handle crafting logic (only combine equal values, double the result)
+- [x] Add win condition detection
 - [ ] The player can see cells all the way to the edge of the map
 
 ## D3.b
