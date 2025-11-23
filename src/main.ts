@@ -181,7 +181,7 @@ function handleCellClick(i: number, j: number) {
     updateStatusPanel();
     updateCell(i, j, newValue);
 
-    statusPanelDiv.innerHTML = `✨ Crafted token with value ${newValue}!`;
+    statusPanelDiv.innerHTML = `Crafted token with value ${newValue}!`;
 
     // Check win condition
     if (newValue >= WIN_VALUE_TOKEN) {

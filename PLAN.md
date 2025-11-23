@@ -39,6 +39,6 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] Add win condition detection
 - [x] The player can see cells all the way to the edge of the map (make belief solution)
 - [x] Implement nearyby detection
-- [ ] add visual update for the cell logic
+- [x] add visual update for the cell logic
 
 ## D3.b
