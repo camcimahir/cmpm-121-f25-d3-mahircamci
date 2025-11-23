@@ -126,7 +126,24 @@ function drawCell(i: number, j: number, tokenValue: number) {
     handleCellClick(i, j);
   });
 
-  return rect;
+  cellRectangles.set(cellKey(i, j), rect);
+}
+
+function removeCell(i: number, j: number) {
+  const key = cellKey(i, j);
+  const rect = cellRectangles.get(key);
+  if (rect) {
+    rect.unbindTooltip();
+    rect.remove();
+    cellRectangles.delete(key);
+  }
+}
+
+function updateCell(i: number, j: number, newValue: number) {
+  // Remove old representation
+  removeCell(i, j);
+  // Draw new one
+  drawCell(i, j, newValue);
 }
 
 function handleCellClick(i: number, j: number) {
@@ -150,7 +167,7 @@ function handleCellClick(i: number, j: number) {
     playerInventory = cellToken;
     cells.set(cellKey(i, j), null); // Remove token from cell
     updateStatusPanel();
-    // later: remove cells visual representation
+    removeCell(i, j);
     statusPanelDiv.innerHTML = `collected token. Value is ${cellToken}`;
     return;
   }
@@ -162,7 +179,8 @@ function handleCellClick(i: number, j: number) {
     cells.set(cellKey(i, j), newValue); // Update cell with new token
     playerInventory = null; // Clear inventory
     updateStatusPanel();
-    // TODO: Update the cell's visual representation
+    updateCell(i, j, newValue);
+
     statusPanelDiv.innerHTML = `✨ Crafted token with value ${newValue}!`;
 
     // Check win condition
