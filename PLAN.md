@@ -42,3 +42,14 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] add visual update for the cell logic
 
 ## D3.b
+
+- [ ] Create buttons to move
+- [ ] Update cell spawning to work from any arbitrary lat/lng
+- [ ] Implement viewport-based cell rendering
+- [ ] Add map 'moveend' event listener to detect when player pans to new area
+- [ ] Calculate which cells should be visible in current viewport
+- [ ] Spawn new cells when viewport changes to show new area
+- [ ] random spawning to new areas (no memory held)
+- [ ] Clean up cells that scroll out of view
+- [ ] Increase win condition value
+- [ ] Add "Move Player" button to teleport player marker to different test locations (not a permanent ability but to test only)
