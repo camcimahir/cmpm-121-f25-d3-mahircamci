@@ -50,5 +50,5 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] Spawn new cells when viewport changes to show new area
 - [x] random spawning to new areas (no memory held)
 - [x] Clean up cells that scroll out of view
-- [ ] Increase win condition value
+- [x] Increase win condition value
 - [ ] Add "Move Player" button to teleport player marker to different test locations (not a permanent ability but to test only)

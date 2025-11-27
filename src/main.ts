@@ -35,7 +35,7 @@ const CLASSROOM_LATLNG = leaflet.latLng(
   36.997936938057016,
   -122.05703507501151,
 ); // Our classroom location
-const WIN_VALUE_TOKEN = 16; //256
+const WIN_VALUE_TOKEN = 256; //256
 const INTERACTION_LIMIT = 3; //test this out 4 might work better
 
 // === Game State ===
