@@ -26,7 +26,7 @@ const statusPanelDiv = document.createElement("div");
 statusPanelDiv.id = "statusPanel";
 document.body.append(statusPanelDiv);
 
-// Tunable gameplay parameters
+// game constants
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
 const NEIGHBORHOOD_SIZE = 32;
@@ -40,31 +40,7 @@ const INTERACTION_LIMIT = 3; //test this out 4 might work better
 
 // === Game State ===
 let playerInventory: number | null = null;
-
-const cells = new Map<string, number | null>();
-
-const cellRectangles = new Map<string, leaflet.Rectangle>();
-
-function cellKey(i: number, j: number): string {
-  return `${i},${j}`;
-}
-
-function initializeCell(i: number, j: number) {
-  const key = cellKey(i, j);
-  if (luck([i, j, "hasToken"].toString()) < TOKEN_SPAWN_PROBABILITY) {
-    cells.set(key, 1); // All initial tokens have value 1
-  } else {
-    cells.set(key, null); // No token
-  }
-}
-
-function getCellToken(i: number, j: number): number | null {
-  return cells.get(cellKey(i, j)) ?? null;
-}
-
-function isNearby(i: number, j: number): boolean {
-  return Math.abs(i) <= INTERACTION_LIMIT && Math.abs(j) <= INTERACTION_LIMIT;
-}
+let playerPosition = CLASSROOM_LATLNG;
 
 // Create the map (element with id "map" is defined in index.html)
 const map = leaflet.map(mapDiv, {
@@ -85,10 +61,122 @@ leaflet
   })
   .addTo(map);
 
-// === Player Marker ===
-const playerMarker = leaflet.marker(CLASSROOM_LATLNG);
+const cells = new Map<string, number | null>();
+
+const cellRectangles = new Map<string, leaflet.Rectangle>();
+
+function cellKey(i: number, j: number): string {
+  return `${i},${j}`;
+}
+
+function generateValueToken(i: number, j: number): number {
+  const possibleValues = [1, 2, 4, 8];
+  const randomIndex = Math.floor(
+    luck([i, j, "tokenValue"].toString()) * possibleValues.length,
+  );
+  return possibleValues[randomIndex];
+}
+
+function initializeCell(i: number, j: number) {
+  const key = cellKey(i, j);
+  if (luck([i, j, "hasToken"].toString()) < TOKEN_SPAWN_PROBABILITY) {
+    cells.set(key, generateValueToken(i, j));
+  } else {
+    cells.set(key, null); // No token
+  }
+}
+
+function getCellToken(i: number, j: number): number | null {
+  return cells.get(cellKey(i, j)) ?? null;
+}
+
+function latLngToCell(lat: number, lng: number): { i: number; j: number } {
+  const i = Math.floor((lat - CLASSROOM_LATLNG.lat) / TILE_DEGREES);
+  const j = Math.floor((lng - CLASSROOM_LATLNG.lng) / TILE_DEGREES);
+  return { i, j };
+}
+function cellToLatLngBounds(i: number, j: number): leaflet.LatLngBounds {
+  // Calculate the latitude and longitude of the cell's bottom-left corner
+  const lat1 = CLASSROOM_LATLNG.lat + i * TILE_DEGREES;
+  const lng1 = CLASSROOM_LATLNG.lng + j * TILE_DEGREES;
+
+  // Calculate the latitude and longitude of the cell's top-right corner
+  const lat2 = CLASSROOM_LATLNG.lat + (i + 1) * TILE_DEGREES;
+  const lng2 = CLASSROOM_LATLNG.lng + (j + 1) * TILE_DEGREES;
+
+  return leaflet.latLngBounds([
+    [lat1, lng1],
+    [lat2, lng2],
+  ]);
+}
+
+function isNearby(i: number, j: number): boolean {
+  // Get player's current cell position
+  const playerCell = latLngToCell(playerPosition.lat, playerPosition.lng);
+
+  // Check distance from player's cell to target cell
+  const di = Math.abs(i - playerCell.i);
+  const dj = Math.abs(j - playerCell.j);
+
+  return di <= INTERACTION_LIMIT && dj <= INTERACTION_LIMIT;
+}
+
+//updateVisibleCells();
+
+const playerMarker = leaflet.marker(playerPosition);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
+
+const moveNorthBtn = document.createElement("button");
+moveNorthBtn.innerHTML = "North";
+controlPanelDiv.append(moveNorthBtn);
+
+const moveSouthBtn = document.createElement("button");
+moveSouthBtn.innerHTML = "South";
+controlPanelDiv.append(moveSouthBtn);
+
+const moveWestBtn = document.createElement("button");
+moveWestBtn.innerHTML = "West";
+controlPanelDiv.append(moveWestBtn);
+
+const moveEastBtn = document.createElement("button");
+moveEastBtn.innerHTML = "East";
+controlPanelDiv.append(moveEastBtn);
+
+// player movement functionality
+function movePlayer(latOffset: number, lngOffset: number) {
+  // Update player position
+  playerPosition = leaflet.latLng(
+    playerPosition.lat + latOffset,
+    playerPosition.lng + lngOffset,
+  );
+
+  // Update player marker position
+  playerMarker.setLatLng(playerPosition);
+
+  // Re-center map on new player position
+  map.panTo(playerPosition);
+
+  // TODO: Clear old cells and regenerate around new position
+  console.log(`Player moved to: ${playerPosition.lat}, ${playerPosition.lng}`);
+}
+
+//movement handlers
+moveNorthBtn.addEventListener("click", () => {
+  movePlayer(TILE_DEGREES, 0);
+});
+
+moveSouthBtn.addEventListener("click", () => {
+  movePlayer(-1 * TILE_DEGREES, 0);
+});
+
+moveWestBtn.addEventListener("click", () => {
+  movePlayer(0, -1 * TILE_DEGREES);
+});
+
+moveEastBtn.addEventListener("click", () => {
+  movePlayer(0, 1 * TILE_DEGREES);
+});
 
 // === Updates the Status Panel ===
 function updateStatusPanel() {
@@ -101,15 +189,73 @@ function updateStatusPanel() {
 
 updateStatusPanel(); // initalize the Status pannel
 
+function getVisibleCells(): {
+  iMin: number;
+  iMax: number;
+  jMin: number;
+  jMax: number;
+} {
+  const bounds = map.getBounds(); // Get visible lat/lng area
+
+  // Convert corners to cell coordinates
+  const northWest = latLngToCell(bounds.getNorth(), bounds.getWest());
+  const southEast = latLngToCell(bounds.getSouth(), bounds.getEast());
+
+  //TODO: change naming convention
+  return {
+    iMin: southEast.i, // South is smaller i (lower latitude)
+    iMax: northWest.i, // North is larger i (higher latitude)
+    jMin: northWest.j, // West is smaller j (lower longitude)
+    jMax: southEast.j, // East is larger j (higher longitude)
+  };
+}
+
+function updateGrid() {
+  const visible = getVisibleCells();
+
+  // We iterate over all existing cells to see if they are still within bounds
+  for (const key of cells.keys()) {
+    const [i, j] = key.split(",").map(Number);
+
+    if (
+      i < visible.iMin ||
+      i > visible.iMax ||
+      j < visible.jMin ||
+      j > visible.jMax
+    ) {
+      //if its off screen remove it
+      removeCell(i, j); // Removes the visual rectangle
+      cells.delete(key); // Deletes the data (so it respawns next time)
+    }
+  }
+
+  // 2. Create cells that are now visible but haven't been generated yet
+  for (let i = visible.iMin; i <= visible.iMax; i++) {
+    for (let j = visible.jMin; j <= visible.jMax; j++) {
+      const key = cellKey(i, j);
+
+      // Only create if we don't already know about this cell
+      if (!cells.has(key)) {
+        initializeCell(i, j); // Roll the dice (luck)
+
+        // If the luck check gave us a token, draw it
+        const tokenValue = getCellToken(i, j);
+        if (tokenValue !== null) {
+          drawCell(i, j, tokenValue);
+        }
+      }
+      // If cells.has(key) is true, we skip it.
+      // This preserves the state: if you picked it up (value is null),
+      // it stays null and we don't redraw the rectangle.
+    }
+  }
+}
+
 // ==============================================================
 
 function drawCell(i: number, j: number, tokenValue: number) {
   // Calculate the lat/lng bounds for this cell
-  const origin = CLASSROOM_LATLNG;
-  const bounds = leaflet.latLngBounds([
-    [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
-    [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
-  ]);
+  const bounds = cellToLatLngBounds(i, j);
 
   // Create a rectangle for this cell
   const rect = leaflet.rectangle(bounds);
@@ -194,19 +340,14 @@ function handleCellClick(i: number, j: number) {
   }
 }
 
-for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
-  for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
-    // Initialize cell data
-    initializeCell(i, j);
+map.on("moveend", () => {
+  console.log("moveend");
 
-    // Only draw cells that have tokens
-    const tokenValue = getCellToken(i, j);
-    if (tokenValue !== null) {
-      drawCell(i, j, tokenValue);
-    }
-  }
-}
+  console.log(getVisibleCells());
+  updateGrid();
+});
 
+updateGrid();
 console.log(`Initialized ${cells.size} cells`);
 console.log(
   `Cells with tokens: ${
