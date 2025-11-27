@@ -51,3 +51,8 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] random spawning to new areas (no memory held)
 - [x] Clean up cells that scroll out of view
 - [x] Increase win condition value
+
+## D3.c
+
+- [ ] Refactor Data Model for to match with the new memento.
+- [ ] memory management. implement flyweight patterns to remembers cells that have been altered only.
