@@ -268,7 +268,9 @@ function drawCell(i: number, j: number, tokenValue: number) {
     className: "token-value-label",
   });
 
-  rect.on("click", () => {
+  rect.on("click", (e) => {
+    leaflet.DomEvent.stopPropagation(e);
+
     handleCellClick(i, j);
   });
 
@@ -304,7 +306,21 @@ function handleCellClick(i: number, j: number) {
 
   // Case 1: Cell has no token
   if (cellToken === null) {
-    statusPanelDiv.innerHTML = "This cell is empty.";
+    if (playerInventory !== null) {
+      const valueToDrop = playerInventory;
+      statusPanelDiv.innerHTML =
+        `bug check: player inventory is ${playerInventory}`;
+      //update state
+      cells.set(cellKey(i, j), valueToDrop);
+      playerInventory = null;
+
+      //update visuals to add the new cell
+      updateStatusPanel();
+      drawCell(i, j, valueToDrop);
+      statusPanelDiv.innerHTML = `Dropped token with value ${valueToDrop}`;
+    } else {
+      statusPanelDiv.innerHTML = "This cell is empty";
+    }
     return;
   }
 
@@ -339,6 +355,15 @@ function handleCellClick(i: number, j: number) {
       `Cannot craft: your token doesn't match cell token`;
   }
 }
+
+// Handle clicks on empty spots
+map.on("click", (e) => {
+  // Convert the mouse click lat/lng to a cell grid index
+  const { i, j } = latLngToCell(e.latlng.lat, e.latlng.lng);
+
+  // Attempt to interact with that cell
+  handleCellClick(i, j);
+});
 
 map.on("moveend", () => {
   console.log("moveend");
