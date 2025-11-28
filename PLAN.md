@@ -56,3 +56,9 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 - [x] Refactor Data Model for to match with the new memento.
 - [x] memory management. implement flyweight patterns to remembers cells that have been altered only.
+
+## D3.d
+
+- [x] able to move the player marker to IRL location
+- [x] Add reset button to restart the game completely
+- [ ] persistent game state across game states

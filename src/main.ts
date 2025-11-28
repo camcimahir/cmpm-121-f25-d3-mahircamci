@@ -156,6 +156,49 @@ const playerMarker = leaflet.marker(playerPosition);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
 
+function resetGame() {
+  if (!confirm("Are you sure you want to wipe your save and reset?")) return;
+  localStorage.clear();
+  location.reload();
+}
+
+class LocationManager {
+  private watchId: number | null = null;
+
+  // Toggle between GPS and Manual
+  toggleGeolocation(enable: boolean) {
+    if (enable) {
+      if (this.watchId !== null) return; // Already enabled
+
+      console.log("Enabling Geolocation...");
+      this.watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          this.handlePositionUpdate(
+            position.coords.latitude,
+            position.coords.longitude,
+          );
+        },
+        (error) => console.error("Geolocation Error:", error),
+        { enableHighAccuracy: true },
+      );
+    } else {
+      if (this.watchId === null) return; // Already disabled
+
+      console.log("Disabling Geolocation...");
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+  }
+
+  private handlePositionUpdate(lat: number, lng: number) {
+    // Determine strict grid movement or free movement?
+    // For this assignment, we just snap the player to the new lat/lng
+    updatePlayerPosition(lat, lng);
+  }
+}
+
+const locationManager = new LocationManager();
+
 const moveNorthBtn = document.createElement("button");
 moveNorthBtn.innerHTML = "North";
 controlPanelDiv.append(moveNorthBtn);
@@ -172,6 +215,33 @@ const moveEastBtn = document.createElement("button");
 moveEastBtn.innerHTML = "East";
 controlPanelDiv.append(moveEastBtn);
 
+const sensorBtn = document.createElement("button");
+sensorBtn.innerHTML = "GPS: OFF";
+controlPanelDiv.append(sensorBtn);
+
+const resetBtn = document.createElement("button");
+resetBtn.innerHTML = "RESET";
+controlPanelDiv.append(resetBtn);
+
+// ====== new movement logic ======
+
+function updatePlayerPosition(lat: number, lng: number) {
+  playerPosition = leaflet.latLng(lat, lng);
+  playerMarker.setLatLng(playerPosition);
+  map.panTo(playerPosition);
+
+  updateGrid();
+  //saveGameState();
+}
+
+// Manual Move Helper (Relative)
+function movePlayer(latOffset: number, lngOffset: number) {
+  const newLat = playerPosition.lat + latOffset;
+  const newLng = playerPosition.lng + lngOffset;
+  updatePlayerPosition(newLat, newLng);
+}
+
+/*
 // player movement functionality
 function movePlayer(latOffset: number, lngOffset: number) {
   // Update player position
@@ -189,7 +259,7 @@ function movePlayer(latOffset: number, lngOffset: number) {
   // TODO: Clear old cells and regenerate around new position
   console.log(`Player moved to: ${playerPosition.lat}, ${playerPosition.lng}`);
 }
-
+*/
 //movement handlers
 moveNorthBtn.addEventListener("click", () => {
   movePlayer(TILE_DEGREES, 0);
@@ -205,6 +275,23 @@ moveWestBtn.addEventListener("click", () => {
 
 moveEastBtn.addEventListener("click", () => {
   movePlayer(0, 1 * TILE_DEGREES);
+});
+
+resetBtn.addEventListener("click", resetGame);
+
+// Toggle GPS Listener
+let isGpsActive = false;
+sensorBtn.addEventListener("click", () => {
+  isGpsActive = !isGpsActive;
+  if (isGpsActive) {
+    sensorBtn.innerHTML = "🌐 GPS: ON";
+    sensorBtn.style.backgroundColor = "#ccffcc";
+    locationManager.toggleGeolocation(true);
+  } else {
+    sensorBtn.innerHTML = "🌐 GPS: OFF";
+    sensorBtn.style.backgroundColor = "";
+    locationManager.toggleGeolocation(false);
+  }
 });
 
 // === Updates the Status Panel ===
@@ -408,5 +495,7 @@ map.on("moveend", () => {
   updateGrid();
 });
 
+//loadGameState();
+updateStatusPanel();
 updateGrid();
 console.log(`Grid initialized.`);
