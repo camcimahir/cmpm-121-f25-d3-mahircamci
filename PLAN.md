@@ -54,5 +54,5 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 
 ## D3.c
 
-- [ ] Refactor Data Model for to match with the new memento.
-- [ ] memory management. implement flyweight patterns to remembers cells that have been altered only.
+- [x] Refactor Data Model for to match with the new memento.
+- [x] memory management. implement flyweight patterns to remembers cells that have been altered only.

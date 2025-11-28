@@ -61,14 +61,31 @@ leaflet
   })
   .addTo(map);
 
-const cells = new Map<string, number | null>();
+const savedcells = new Map<string, number | null>();
 
 const cellRectangles = new Map<string, leaflet.Rectangle>();
+
+function getCellStatus(i: number, j: number): number | null {
+  const key = cellKey(i, j);
+
+  // Check if we have a saved state (Memento)
+  if (savedcells.has(key)) {
+    return savedcells.get(key)!;
+  }
+
+  // If no saved state, return the default generation (Flyweight)
+  return getCanonicalCell(i, j);
+}
+
+function saveCellStatus(i: number, j: number, value: number | null) {
+  const key = cellKey(i, j);
+  savedcells.set(key, value);
+}
 
 function cellKey(i: number, j: number): string {
   return `${i},${j}`;
 }
-
+/*
 function generateValueToken(i: number, j: number): number {
   const possibleValues = [1, 2, 4, 8];
   const randomIndex = Math.floor(
@@ -85,11 +102,23 @@ function initializeCell(i: number, j: number) {
     cells.set(key, null); // No token
   }
 }
-
+*/
+function getCanonicalCell(i: number, j: number): number | null {
+  const key = [i, j, "hasToken"].toString();
+  // Check luck to see if a token exists by default
+  if (luck(key) < TOKEN_SPAWN_PROBABILITY) {
+    const valueKey = [i, j, "tokenValue"].toString();
+    const possibleValues = [1, 2, 4, 8];
+    const randomIndex = Math.floor(luck(valueKey) * possibleValues.length);
+    return possibleValues[randomIndex];
+  }
+  return null;
+}
+/*
 function getCellToken(i: number, j: number): number | null {
   return cells.get(cellKey(i, j)) ?? null;
 }
-
+*/
 function latLngToCell(lat: number, lng: number): { i: number; j: number } {
   const i = Math.floor((lat - CLASSROOM_LATLNG.lat) / TILE_DEGREES);
   const j = Math.floor((lng - CLASSROOM_LATLNG.lng) / TILE_DEGREES);
@@ -214,7 +243,7 @@ function updateGrid() {
   const visible = getVisibleCells();
 
   // We iterate over all existing cells to see if they are still within bounds
-  for (const key of cells.keys()) {
+  for (const key of cellRectangles.keys()) {
     const [i, j] = key.split(",").map(Number);
 
     if (
@@ -225,7 +254,6 @@ function updateGrid() {
     ) {
       //if its off screen remove it
       removeCell(i, j); // Removes the visual rectangle
-      cells.delete(key); // Deletes the data (so it respawns next time)
     }
   }
 
@@ -235,13 +263,12 @@ function updateGrid() {
       const key = cellKey(i, j);
 
       // Only create if we don't already know about this cell
-      if (!cells.has(key)) {
-        initializeCell(i, j); // Roll the dice (luck)
+      if (!cellRectangles.has(key)) {
+        const value = getCellStatus(i, j); //checks the memento then flyweight
 
-        // If the luck check gave us a token, draw it
-        const tokenValue = getCellToken(i, j);
-        if (tokenValue !== null) {
-          drawCell(i, j, tokenValue);
+        // We only draw if there is something to show
+        if (value !== null) {
+          drawCell(i, j, value);
         }
       }
       // If cells.has(key) is true, we skip it.
@@ -287,11 +314,12 @@ function removeCell(i: number, j: number) {
   }
 }
 
-function updateCell(i: number, j: number, newValue: number) {
+function updateCell(i: number, j: number, newValue: number | null) {
   // Remove old representation
   removeCell(i, j);
-  // Draw new one
-  drawCell(i, j, newValue);
+  if (newValue !== null) {
+    drawCell(i, j, newValue);
+  }
 }
 
 function handleCellClick(i: number, j: number) {
@@ -302,7 +330,8 @@ function handleCellClick(i: number, j: number) {
     return;
   }
 
-  const cellToken = getCellToken(i, j);
+  const cellToken = getCellStatus(i, j);
+  //const cellToken = getCellToken(i, j);
 
   // Case 1: Cell has no token
   if (cellToken === null) {
@@ -310,13 +339,15 @@ function handleCellClick(i: number, j: number) {
       const valueToDrop = playerInventory;
       statusPanelDiv.innerHTML =
         `bug check: player inventory is ${playerInventory}`;
+
       //update state
-      cells.set(cellKey(i, j), valueToDrop);
+      saveCellStatus(i, j, valueToDrop);
       playerInventory = null;
 
       //update visuals to add the new cell
       updateStatusPanel();
-      drawCell(i, j, valueToDrop);
+      updateCell(i, j, valueToDrop);
+      //drawCell(i, j, valueToDrop);
       statusPanelDiv.innerHTML = `Dropped token with value ${valueToDrop}`;
     } else {
       statusPanelDiv.innerHTML = "This cell is empty";
@@ -327,19 +358,24 @@ function handleCellClick(i: number, j: number) {
   // Case 2: Player inventory is empty - collect the token
   if (playerInventory === null) {
     playerInventory = cellToken;
-    cells.set(cellKey(i, j), null); // Remove token from cell
+
+    saveCellStatus(i, j, null);
+
+    //update ui
     updateStatusPanel();
-    removeCell(i, j);
+    updateCell(i, j, null);
     statusPanelDiv.innerHTML = `collected token. Value is ${cellToken}`;
     return;
   }
 
   // Case 3: Player has a token - try to craft
   if (playerInventory === cellToken) {
-    // Tokens match! Craft a new token of double value
     const newValue = playerInventory * 2;
-    cells.set(cellKey(i, j), newValue); // Update cell with new token
-    playerInventory = null; // Clear inventory
+
+    //update cell state
+    saveCellStatus(i, j, newValue);
+    playerInventory = null; //clear plyaer inventory
+
     updateStatusPanel();
     updateCell(i, j, newValue);
 
@@ -373,9 +409,4 @@ map.on("moveend", () => {
 });
 
 updateGrid();
-console.log(`Initialized ${cells.size} cells`);
-console.log(
-  `Cells with tokens: ${
-    Array.from(cells.values()).filter((v) => v !== null).length
-  }`,
-);
+console.log(`Grid initialized.`);
