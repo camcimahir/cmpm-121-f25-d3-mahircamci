@@ -12,7 +12,20 @@ import "./_leafletWorkaround.ts"; // fixes for missing Leaflet images
 // Import our luck function
 import luck from "./_luck.ts";
 
-// Create basic UI elements
+// ========= CONFIGURATION & CONSTANTS ============
+
+const GAMEPLAY_ZOOM_LEVEL = 19;
+const TILE_DEGREES = 1e-4;
+const NEIGHBORHOOD_SIZE = 32;
+const TOKEN_SPAWN_PROBABILITY = 0.1;
+const CLASSROOM_LATLNG = leaflet.latLng(
+  36.997936938057016,
+  -122.05703507501151,
+); // Our classroom location
+const WIN_VALUE_TOKEN = 256; //256
+const INTERACTION_LIMIT = 3; //test this out 4 might work better
+
+// ========== UI Elements ===================
 
 const controlPanelDiv = document.createElement("div");
 controlPanelDiv.id = "controlPanel";
@@ -26,21 +39,112 @@ const statusPanelDiv = document.createElement("div");
 statusPanelDiv.id = "statusPanel";
 document.body.append(statusPanelDiv);
 
-// game constants
-const GAMEPLAY_ZOOM_LEVEL = 19;
-const TILE_DEGREES = 1e-4;
-const NEIGHBORHOOD_SIZE = 32;
-const TOKEN_SPAWN_PROBABILITY = 0.1;
-const CLASSROOM_LATLNG = leaflet.latLng(
-  36.997936938057016,
-  -122.05703507501151,
-); // Our classroom location
-const WIN_VALUE_TOKEN = 256; //256
-const INTERACTION_LIMIT = 3; //test this out 4 might work better
+// ======== Game State ==============
 
-// === Game State ===
 let playerInventory: number | null = null;
 let playerPosition = CLASSROOM_LATLNG;
+
+//only stores cells that have changed
+const savedcells = new Map<string, number | null>();
+//keeps track of leaflet layers
+const cellRectangles = new Map<string, leaflet.Rectangle>();
+
+// ========== Save State (Persistence) System ========================
+
+function saveGameState() {
+  //save inventory
+  localStorage.setItem("playerInventory", JSON.stringify(playerInventory));
+
+  // Save lat/lng position
+  localStorage.setItem(
+    "playerPosition",
+    JSON.stringify({
+      lat: playerPosition.lat,
+      lng: playerPosition.lng,
+    }),
+  );
+
+  // Save the modified cells
+  localStorage.setItem(
+    "momentos",
+    JSON.stringify(Array.from(savedcells.entries())),
+  );
+}
+
+function loadGameState() {
+  //load inventory
+  const invData = localStorage.getItem("playerInventory");
+  if (invData && invData !== "null") {
+    playerInventory = Number(JSON.parse(invData));
+  } else {
+    playerInventory = null;
+  }
+
+  // Load Position
+  const posData = localStorage.getItem("playerPosition");
+  if (posData) {
+    const { lat, lng } = JSON.parse(posData);
+    playerPosition = leaflet.latLng(lat, lng);
+  }
+
+  // Load Mementos
+  const momentosData = localStorage.getItem("momentos");
+  if (momentosData) {
+    const entries = JSON.parse(momentosData);
+    entries.forEach(([key, value]: [string, any]) => {
+      // Ensure values are correct types (null or number)
+      if (value === null) {
+        savedcells.set(key, null);
+      } else {
+        savedcells.set(key, Number(value));
+      }
+    });
+  }
+}
+
+function resetGame() {
+  if (!confirm("Are you sure you want to wipe your save and reset?")) return;
+  localStorage.clear();
+  location.reload();
+}
+
+// =============== Facade Pattern =================
+
+class LocationManager {
+  private watchId: number | null = null;
+
+  // Toggle between GPS and Manual
+  toggleGeolocation(enable: boolean) {
+    if (enable) {
+      if (this.watchId !== null) return; // Already enabled
+
+      console.log("Enabling Geolocation...");
+      this.watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          updatePlayerPosition(
+            position.coords.latitude,
+            position.coords.longitude,
+          );
+        },
+        (error) => console.error("Geolocation Error:", error),
+        {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+        },
+      );
+    } else {
+      if (this.watchId === null) return; // Already disabled
+
+      console.log("Disabling Geolocation...");
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+  }
+}
+
+const locationManager = new LocationManager();
+
+// ================ Movement Logic =================
 
 // Create the map (element with id "map" is defined in index.html)
 const map = leaflet.map(mapDiv, {
@@ -61,9 +165,18 @@ leaflet
   })
   .addTo(map);
 
-const savedcells = new Map<string, number | null>();
+const playerMarker = leaflet.marker(playerPosition);
+playerMarker.bindTooltip("That's you!");
+playerMarker.addTo(map);
 
-const cellRectangles = new Map<string, leaflet.Rectangle>();
+function updatePlayerPosition(lat: number, lng: number) {
+  playerPosition = leaflet.latLng(lat, lng);
+  playerMarker.setLatLng(playerPosition);
+  map.panTo(playerPosition);
+
+  updateGrid();
+  saveGameState();
+}
 
 function getCellStatus(i: number, j: number): number | null {
   const key = cellKey(i, j);
@@ -152,53 +265,6 @@ function isNearby(i: number, j: number): boolean {
 
 //updateVisibleCells();
 
-const playerMarker = leaflet.marker(playerPosition);
-playerMarker.bindTooltip("That's you!");
-playerMarker.addTo(map);
-
-function resetGame() {
-  if (!confirm("Are you sure you want to wipe your save and reset?")) return;
-  localStorage.clear();
-  location.reload();
-}
-
-class LocationManager {
-  private watchId: number | null = null;
-
-  // Toggle between GPS and Manual
-  toggleGeolocation(enable: boolean) {
-    if (enable) {
-      if (this.watchId !== null) return; // Already enabled
-
-      console.log("Enabling Geolocation...");
-      this.watchId = navigator.geolocation.watchPosition(
-        (position) => {
-          this.handlePositionUpdate(
-            position.coords.latitude,
-            position.coords.longitude,
-          );
-        },
-        (error) => console.error("Geolocation Error:", error),
-        { enableHighAccuracy: true },
-      );
-    } else {
-      if (this.watchId === null) return; // Already disabled
-
-      console.log("Disabling Geolocation...");
-      navigator.geolocation.clearWatch(this.watchId);
-      this.watchId = null;
-    }
-  }
-
-  private handlePositionUpdate(lat: number, lng: number) {
-    // Determine strict grid movement or free movement?
-    // For this assignment, we just snap the player to the new lat/lng
-    updatePlayerPosition(lat, lng);
-  }
-}
-
-const locationManager = new LocationManager();
-
 const moveNorthBtn = document.createElement("button");
 moveNorthBtn.innerHTML = "North";
 controlPanelDiv.append(moveNorthBtn);
@@ -224,15 +290,6 @@ resetBtn.innerHTML = "RESET";
 controlPanelDiv.append(resetBtn);
 
 // ====== new movement logic ======
-
-function updatePlayerPosition(lat: number, lng: number) {
-  playerPosition = leaflet.latLng(lat, lng);
-  playerMarker.setLatLng(playerPosition);
-  map.panTo(playerPosition);
-
-  updateGrid();
-  //saveGameState();
-}
 
 // Manual Move Helper (Relative)
 function movePlayer(latOffset: number, lngOffset: number) {
