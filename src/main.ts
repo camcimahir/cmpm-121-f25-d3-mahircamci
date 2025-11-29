@@ -16,7 +16,7 @@ import luck from "./_luck.ts";
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
-const NEIGHBORHOOD_SIZE = 32;
+const NEIGHBORHOOD_SIZE = 8;
 const TOKEN_SPAWN_PROBABILITY = 0.1;
 const CLASSROOM_LATLNG = leaflet.latLng(
   36.997936938057016,
@@ -178,60 +178,18 @@ function updatePlayerPosition(lat: number, lng: number) {
   saveGameState();
 }
 
-function getCellStatus(i: number, j: number): number | null {
-  const key = cellKey(i, j);
-
-  // Check if we have a saved state (Memento)
-  if (savedcells.has(key)) {
-    return savedcells.get(key)!;
-  }
-
-  // If no saved state, return the default generation (Flyweight)
-  return getCanonicalCell(i, j);
+function movePlayer(latOffset: number, lngOffset: number) {
+  const newLat = playerPosition.lat + latOffset;
+  const newLng = playerPosition.lng + lngOffset;
+  updatePlayerPosition(newLat, newLng);
 }
 
-function saveCellStatus(i: number, j: number, value: number | null) {
-  const key = cellKey(i, j);
-  savedcells.set(key, value);
-}
+// =========== Grid & Cell Logic ========================
 
 function cellKey(i: number, j: number): string {
   return `${i},${j}`;
 }
-/*
-function generateValueToken(i: number, j: number): number {
-  const possibleValues = [1, 2, 4, 8];
-  const randomIndex = Math.floor(
-    luck([i, j, "tokenValue"].toString()) * possibleValues.length,
-  );
-  return possibleValues[randomIndex];
-}
 
-function initializeCell(i: number, j: number) {
-  const key = cellKey(i, j);
-  if (luck([i, j, "hasToken"].toString()) < TOKEN_SPAWN_PROBABILITY) {
-    cells.set(key, generateValueToken(i, j));
-  } else {
-    cells.set(key, null); // No token
-  }
-}
-*/
-function getCanonicalCell(i: number, j: number): number | null {
-  const key = [i, j, "hasToken"].toString();
-  // Check luck to see if a token exists by default
-  if (luck(key) < TOKEN_SPAWN_PROBABILITY) {
-    const valueKey = [i, j, "tokenValue"].toString();
-    const possibleValues = [1, 2, 4, 8];
-    const randomIndex = Math.floor(luck(valueKey) * possibleValues.length);
-    return possibleValues[randomIndex];
-  }
-  return null;
-}
-/*
-function getCellToken(i: number, j: number): number | null {
-  return cells.get(cellKey(i, j)) ?? null;
-}
-*/
 function latLngToCell(lat: number, lng: number): { i: number; j: number } {
   const i = Math.floor((lat - CLASSROOM_LATLNG.lat) / TILE_DEGREES);
   const j = Math.floor((lng - CLASSROOM_LATLNG.lng) / TILE_DEGREES);
@@ -263,95 +221,34 @@ function isNearby(i: number, j: number): boolean {
   return di <= INTERACTION_LIMIT && dj <= INTERACTION_LIMIT;
 }
 
-//updateVisibleCells();
-
-const moveNorthBtn = document.createElement("button");
-moveNorthBtn.innerHTML = "North";
-controlPanelDiv.append(moveNorthBtn);
-
-const moveSouthBtn = document.createElement("button");
-moveSouthBtn.innerHTML = "South";
-controlPanelDiv.append(moveSouthBtn);
-
-const moveWestBtn = document.createElement("button");
-moveWestBtn.innerHTML = "West";
-controlPanelDiv.append(moveWestBtn);
-
-const moveEastBtn = document.createElement("button");
-moveEastBtn.innerHTML = "East";
-controlPanelDiv.append(moveEastBtn);
-
-const sensorBtn = document.createElement("button");
-sensorBtn.innerHTML = "GPS: OFF";
-controlPanelDiv.append(sensorBtn);
-
-const resetBtn = document.createElement("button");
-resetBtn.innerHTML = "RESET";
-controlPanelDiv.append(resetBtn);
-
-// ====== new movement logic ======
-
-// Manual Move Helper (Relative)
-function movePlayer(latOffset: number, lngOffset: number) {
-  const newLat = playerPosition.lat + latOffset;
-  const newLng = playerPosition.lng + lngOffset;
-  updatePlayerPosition(newLat, newLng);
-}
-
-/*
-// player movement functionality
-function movePlayer(latOffset: number, lngOffset: number) {
-  // Update player position
-  playerPosition = leaflet.latLng(
-    playerPosition.lat + latOffset,
-    playerPosition.lng + lngOffset,
-  );
-
-  // Update player marker position
-  playerMarker.setLatLng(playerPosition);
-
-  // Re-center map on new player position
-  map.panTo(playerPosition);
-
-  // TODO: Clear old cells and regenerate around new position
-  console.log(`Player moved to: ${playerPosition.lat}, ${playerPosition.lng}`);
-}
-*/
-//movement handlers
-moveNorthBtn.addEventListener("click", () => {
-  movePlayer(TILE_DEGREES, 0);
-});
-
-moveSouthBtn.addEventListener("click", () => {
-  movePlayer(-1 * TILE_DEGREES, 0);
-});
-
-moveWestBtn.addEventListener("click", () => {
-  movePlayer(0, -1 * TILE_DEGREES);
-});
-
-moveEastBtn.addEventListener("click", () => {
-  movePlayer(0, 1 * TILE_DEGREES);
-});
-
-resetBtn.addEventListener("click", resetGame);
-
-// Toggle GPS Listener
-let isGpsActive = false;
-sensorBtn.addEventListener("click", () => {
-  isGpsActive = !isGpsActive;
-  if (isGpsActive) {
-    sensorBtn.innerHTML = "🌐 GPS: ON";
-    sensorBtn.style.backgroundColor = "#ccffcc";
-    locationManager.toggleGeolocation(true);
-  } else {
-    sensorBtn.innerHTML = "🌐 GPS: OFF";
-    sensorBtn.style.backgroundColor = "";
-    locationManager.toggleGeolocation(false);
+function getCanonicalCell(i: number, j: number): number | null {
+  const key = [i, j, "hasToken"].toString();
+  // Check luck to see if a token exists by default
+  if (luck(key) < TOKEN_SPAWN_PROBABILITY) {
+    const valueKey = [i, j, "tokenValue"].toString();
+    const possibleValues = [1, 2, 4, 8];
+    const randomIndex = Math.floor(luck(valueKey) * possibleValues.length);
+    return possibleValues[randomIndex];
   }
-});
+  return null;
+}
 
-// === Updates the Status Panel ===
+function getCellStatus(i: number, j: number): number | null {
+  const key = cellKey(i, j);
+  // Check if we have a saved state (Memento)
+  if (savedcells.has(key)) {
+    return savedcells.get(key)!;
+  }
+  return getCanonicalCell(i, j); // If no saved state, return the default generation
+}
+
+function saveCellStatus(i: number, j: number, value: number | null) {
+  const key = cellKey(i, j);
+  savedcells.set(key, value);
+}
+
+// ============= Visual Logic =====================
+
 function updateStatusPanel() {
   if (playerInventory === null) {
     statusPanelDiv.innerHTML = "Inventory: Empty";
@@ -389,7 +286,6 @@ function updateGrid() {
   // We iterate over all existing cells to see if they are still within bounds
   for (const key of cellRectangles.keys()) {
     const [i, j] = key.split(",").map(Number);
-
     if (
       i < visible.iMin ||
       i > visible.iMax ||
@@ -401,7 +297,7 @@ function updateGrid() {
     }
   }
 
-  // 2. Create cells that are now visible but haven't been generated yet
+  // Create cells that are now visible but haven't been generated yet
   for (let i = visible.iMin; i <= visible.iMax; i++) {
     for (let j = visible.jMin; j <= visible.jMax; j++) {
       const key = cellKey(i, j);
@@ -415,19 +311,13 @@ function updateGrid() {
           drawCell(i, j, value);
         }
       }
-      // If cells.has(key) is true, we skip it.
-      // This preserves the state: if you picked it up (value is null),
-      // it stays null and we don't redraw the rectangle.
     }
   }
 }
 
-// ==============================================================
-
 function drawCell(i: number, j: number, tokenValue: number) {
   // Calculate the lat/lng bounds for this cell
   const bounds = cellToLatLngBounds(i, j);
-
   // Create a rectangle for this cell
   const rect = leaflet.rectangle(bounds);
   rect.addTo(map);
@@ -441,7 +331,6 @@ function drawCell(i: number, j: number, tokenValue: number) {
 
   rect.on("click", (e) => {
     leaflet.DomEvent.stopPropagation(e);
-
     handleCellClick(i, j);
   });
 
@@ -465,6 +354,8 @@ function updateCell(i: number, j: number, newValue: number | null) {
     drawCell(i, j, newValue);
   }
 }
+
+// =============== Handlers =====================
 
 function handleCellClick(i: number, j: number) {
   // Check if cell is nearby
@@ -491,7 +382,7 @@ function handleCellClick(i: number, j: number) {
       //update visuals to add the new cell
       updateStatusPanel();
       updateCell(i, j, valueToDrop);
-      //drawCell(i, j, valueToDrop);
+      saveGameState();
       statusPanelDiv.innerHTML = `Dropped token with value ${valueToDrop}`;
     } else {
       statusPanelDiv.innerHTML = "This cell is empty";
@@ -508,6 +399,7 @@ function handleCellClick(i: number, j: number) {
     //update ui
     updateStatusPanel();
     updateCell(i, j, null);
+    saveGameState();
     statusPanelDiv.innerHTML = `collected token. Value is ${cellToken}`;
     return;
   }
@@ -522,6 +414,7 @@ function handleCellClick(i: number, j: number) {
 
     updateStatusPanel();
     updateCell(i, j, newValue);
+    saveGameState();
 
     statusPanelDiv.innerHTML = `Crafted token with value ${newValue}!`;
 
@@ -536,11 +429,70 @@ function handleCellClick(i: number, j: number) {
   }
 }
 
+// ============== Initilization ====================
+
+const moveNorthBtn = document.createElement("button");
+moveNorthBtn.innerHTML = "North";
+controlPanelDiv.append(moveNorthBtn);
+
+const moveSouthBtn = document.createElement("button");
+moveSouthBtn.innerHTML = "South";
+controlPanelDiv.append(moveSouthBtn);
+
+const moveWestBtn = document.createElement("button");
+moveWestBtn.innerHTML = "West";
+controlPanelDiv.append(moveWestBtn);
+
+const moveEastBtn = document.createElement("button");
+moveEastBtn.innerHTML = "East";
+controlPanelDiv.append(moveEastBtn);
+
+const sensorBtn = document.createElement("button");
+sensorBtn.innerHTML = "GPS: OFF";
+controlPanelDiv.append(sensorBtn);
+
+const resetBtn = document.createElement("button");
+resetBtn.innerHTML = "RESET";
+controlPanelDiv.append(resetBtn);
+
+//movement handlers
+moveNorthBtn.addEventListener("click", () => {
+  movePlayer(TILE_DEGREES, 0);
+});
+
+moveSouthBtn.addEventListener("click", () => {
+  movePlayer(-1 * TILE_DEGREES, 0);
+});
+
+moveWestBtn.addEventListener("click", () => {
+  movePlayer(0, -1 * TILE_DEGREES);
+});
+
+moveEastBtn.addEventListener("click", () => {
+  movePlayer(0, 1 * TILE_DEGREES);
+});
+
+resetBtn.addEventListener("click", resetGame);
+
+// Toggle GPS Listener
+let isGpsActive = false;
+sensorBtn.addEventListener("click", () => {
+  isGpsActive = !isGpsActive;
+  if (isGpsActive) {
+    sensorBtn.innerHTML = "GPS: ON";
+    sensorBtn.style.backgroundColor = "#ccffcc";
+    locationManager.toggleGeolocation(true);
+  } else {
+    sensorBtn.innerHTML = "GPS: OFF";
+    sensorBtn.style.backgroundColor = "";
+    locationManager.toggleGeolocation(false);
+  }
+});
+
 // Handle clicks on empty spots
 map.on("click", (e) => {
   // Convert the mouse click lat/lng to a cell grid index
   const { i, j } = latLngToCell(e.latlng.lat, e.latlng.lng);
-
   // Attempt to interact with that cell
   handleCellClick(i, j);
 });
@@ -552,7 +504,10 @@ map.on("moveend", () => {
   updateGrid();
 });
 
-//loadGameState();
+loadGameState(); // Load saved data
+// Move map to loaded position immediately
+playerMarker.setLatLng(playerPosition);
+map.panTo(playerPosition);
 updateStatusPanel();
 updateGrid();
 console.log(`Grid initialized.`);
