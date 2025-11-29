@@ -62,3 +62,4 @@ Key gameplay challenge: Can players collect and craft tokens from nearby locatio
 - [x] able to move the player marker to IRL location
 - [x] Add reset button to restart the game completely
 - [x] persistent game state across different page loads
+- [x] fixed reset game function

@@ -105,7 +105,28 @@ function loadGameState() {
 function resetGame() {
   if (!confirm("Are you sure you want to wipe your save and reset?")) return;
   localStorage.clear();
-  location.reload();
+  playerInventory = null;
+  savedcells.clear();
+  for (const rect of cellRectangles.values()) {
+    rect.remove();
+  }
+  cellRectangles.clear();
+  updateStatusPanel();
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      // Success: Teleport to IRL
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+
+      console.log("Resetting game to IRL location:", lat, lng);
+      updatePlayerPosition(lat, lng);
+    },
+    (error) => {
+      // Teleport to Classroom if GPS fails
+      console.warn("Reset fallback: GPS failed", error);
+      updatePlayerPosition(CLASSROOM_LATLNG.lat, CLASSROOM_LATLNG.lng);
+    },
+  );
 }
 
 // =============== Facade Pattern =================
@@ -481,10 +502,22 @@ sensorBtn.addEventListener("click", () => {
   if (isGpsActive) {
     sensorBtn.innerHTML = "GPS: ON";
     sensorBtn.style.backgroundColor = "#ccffcc";
+
+    moveNorthBtn.disabled = true;
+    moveSouthBtn.disabled = true;
+    moveWestBtn.disabled = true;
+    moveEastBtn.disabled = true;
+
     locationManager.toggleGeolocation(true);
   } else {
     sensorBtn.innerHTML = "GPS: OFF";
     sensorBtn.style.backgroundColor = "";
+
+    moveNorthBtn.disabled = false;
+    moveSouthBtn.disabled = false;
+    moveWestBtn.disabled = false;
+    moveEastBtn.disabled = false;
+
     locationManager.toggleGeolocation(false);
   }
 });
